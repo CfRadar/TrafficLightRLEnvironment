@@ -8,7 +8,7 @@ from pydantic import Field
 from my_env_v4 import MyEnvV4Env, MyEnvV4Action
 
 class TrafficAction(Action):
-    signal: int = Field(default=0, description="0 for NS, 1 for EW")
+    signal: int = Field(default=0, description="0: North, 1: South, 2: East, 3: West")
 
 class TrafficObservation(Observation):
     north_queue: int = 0
