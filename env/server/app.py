@@ -35,12 +35,8 @@ except Exception as e:  # pragma: no cover
         "openenv is required for the web interface. Install dependencies with '\n    uv sync\n'"
     ) from e
 
-try:
-    from ..models import EnvAction, EnvObservation
-    from .env_environment import EnvEnvironment
-except ModuleNotFoundError:
-    from models import EnvAction, EnvObservation
-    from server.env_environment import EnvEnvironment
+from models import EnvAction, EnvObservation
+from server.env_environment import EnvEnvironment
 
 
 # Create the app with web interface and README integration
