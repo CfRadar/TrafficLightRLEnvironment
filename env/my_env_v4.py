@@ -18,7 +18,7 @@ class Observation:
     cars_passed_last_step: int
 
 class MyEnvV4Env:
-    def __init__(self, max_steps=50):
+    def __init__(self, max_steps=50, task="medium"):
         self.north = 0
         self.south = 0
         self.east = 0
@@ -36,6 +36,7 @@ class MyEnvV4Env:
         self.action_history = []
         self.prev_total_queue = 0
         self.previous_reward = 0.0
+        self.task = task.lower() if task else "medium"
 
     async def reset(self) -> Observation:
         self.north = 0
@@ -77,10 +78,23 @@ class MyEnvV4Env:
         else:
             self.time_elapsed += 1
 
-        self.north += random.randint(0, 3)
-        self.south += random.randint(0, 3)
-        self.east += random.randint(0, 3)
-        self.west += random.randint(0, 3)
+        if self.task == "easy":
+            self.north += random.randint(0, 1)
+            self.south += random.randint(0, 1)
+            self.east += random.randint(0, 1)
+            self.west += random.randint(0, 1)
+        elif self.task == "hard":
+            # Imbalanced and high traffic
+            self.north += random.randint(1, 5)
+            self.south += random.randint(1, 5)
+            self.east += random.randint(0, 2)
+            self.west += random.randint(0, 2)
+        else:
+            # medium
+            self.north += random.randint(0, 3)
+            self.south += random.randint(0, 3)
+            self.east += random.randint(0, 3)
+            self.west += random.randint(0, 3)
 
         cars_cleared = 0
         if self.current_signal == 0:

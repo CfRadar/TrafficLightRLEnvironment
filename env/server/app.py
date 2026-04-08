@@ -23,10 +23,12 @@ class TrafficEnvironmentAdapter(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
     
     def __init__(self):
-        self.env = MyEnvV4Env()
+        self.env = MyEnvV4Env(task="medium")
         self._state = State(episode_id=str(uuid.uuid4()), step_count=0)
 
     def reset(self, seed=None, episode_id=None, **kwargs) -> TrafficObservation:
+        task_attr = kwargs.get("task_id", kwargs.get("task_name", "medium"))
+        self.env = MyEnvV4Env(task=task_attr)
         import asyncio
         obs = asyncio.run(self.env.reset())
         self._state.step_count = 0
