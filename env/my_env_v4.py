@@ -1,3 +1,4 @@
+import math
 import random
 from dataclasses import dataclass
 from typing import Tuple
@@ -30,6 +31,11 @@ class MyEnvV4Env:
         self.MAX_QUEUE = 40
         self.MAX_THROUGHPUT = 6
         self.MAX_STEPS = max_steps
+        
+        # New state variables for advanced reward structure
+        self.action_history = []
+        self.prev_total_queue = 0
+        self.previous_reward = 0.0
 
     async def reset(self) -> Observation:
         self.north = 0
@@ -41,6 +47,11 @@ class MyEnvV4Env:
         self.time_elapsed = 0
         self.step_count = 0
         self._last_heuristic_action = None
+        
+        self.action_history = []
+        self.prev_total_queue = 0
+        self.previous_reward = 0.0
+        
         return self._get_obs(0)
 
     def _get_obs(self, cars_cleared: int) -> Observation:
@@ -55,15 +66,15 @@ class MyEnvV4Env:
         )
 
     async def step(self, action: MyEnvV4Action) -> Tuple[Observation, float, bool, dict]:
-        switch_penalty = 0.0
-        consistency_bonus = 0.0
-        
+        # Update action history
+        self.action_history.append(action.signal)
+        if len(self.action_history) > 5:
+            self.action_history.pop(0)
+
         if action.signal != self.current_signal:
-            switch_penalty = 0.05
             self.current_signal = action.signal
             self.time_elapsed = 0
         else:
-            consistency_bonus = 0.02
             self.time_elapsed += 1
 
         self.north += random.randint(0, 3)
@@ -89,23 +100,48 @@ class MyEnvV4Env:
             self.west -= w_clear
             cars_cleared = w_clear
 
+        current_queues = [self.north, self.south, self.east, self.west]
+        total_queue = sum(current_queues)
+
         for i in range(4):
             if i == self.current_signal:
                 self.wait_times[i] = 0
             else:
                 self.wait_times[i] += 1
 
-        total_queue = self.north + self.south + self.east + self.west
-        congestion_penalty = min(total_queue / self.MAX_QUEUE, 1.0)
+        # 2. BASE REWARD (PRIMARY SIGNAL)
+        max_possible_queue = self.MAX_QUEUE * 4
+        total_queue_ratio = min(1.0, total_queue / max_possible_queue)
+        base_reward = 1.0 - total_queue_ratio
+
+        # 3. SMOOTH IMPROVEMENT BONUS
+        scale_factor = 10.0
+        delta = self.prev_total_queue - total_queue
+        improvement_bonus = math.tanh(delta / scale_factor) * 0.1
+        self.prev_total_queue = total_queue
+
+        # 4. SOFT PENALTIES
+        repetition_count = self.action_history.count(action.signal)
+        repetition_penalty = min(0.1, repetition_count * 0.02)
+
+        MAX_ALLOWED_WAIT = 10.0
+        max_wait_time = max(self.wait_times)
+        starvation_penalty = min(0.15, (max_wait_time / MAX_ALLOWED_WAIT) * 0.1)
+
+        max_lane_queue = max(current_queues)
+        queue_penalty = min(0.15, (max_lane_queue / self.MAX_QUEUE) * 0.15)
+
+        # 6. FINAL REWARD
+        raw_reward = base_reward + improvement_bonus - repetition_penalty - starvation_penalty - queue_penalty
         
-        throughput_score = cars_cleared / self.MAX_THROUGHPUT
+        # Clamp to strictly [0.0, 1.0] before smoothing
+        current_reward = max(0.0, min(1.0, raw_reward))
+
+        # 5. TEMPORAL SMOOTHING
+        smoothed_reward = 0.7 * current_reward + 0.3 * self.previous_reward
+        self.previous_reward = smoothed_reward
         
-        MAX_WAIT = 10.0
-        fairness_penalty = min(max(self.wait_times) / MAX_WAIT, 1.0)
-        
-        reward = 0.7 * (1.0 - congestion_penalty) + 0.2 * throughput_score + 0.1 * (1.0 - fairness_penalty)
-        reward = reward - switch_penalty + consistency_bonus
-        reward = max(0.0, min(1.0, reward))
+        reward = smoothed_reward
 
         self.step_count += 1
         done = self.step_count >= self.MAX_STEPS
