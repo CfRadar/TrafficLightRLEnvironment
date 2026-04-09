@@ -7,7 +7,10 @@ port: 8000
 tasks:
   - id: "easy"
     name: "Easy (Low Traffic)"
+    grader: "graders:easy_grader"
   - id: "medium"
     name: "Medium (Moderate Traffic)"
+    grader: "graders:medium_grader"
   - id: "hard"
     name: "Hard (High and Imbalanced Traffic)"
+    grader: "graders:hard_grader"
