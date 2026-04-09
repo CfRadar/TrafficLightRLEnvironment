@@ -7,16 +7,42 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://api-inference.huggingface.co/v
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 API_KEY = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-MAX_STEPS = int(os.getenv("MAX_STEPS", "150"))
+MAX_STEPS = 100
 import random
 
-async def run_inference():
+import yaml
+import importlib
+
+def load_task(task_id):
+    class SimulatedTask:
+        def __init__(self):
+            try:
+                with open("openenv.yaml", "r") as f:
+                    spec = yaml.safe_load(f)
+                task_info = next((t for t in spec.get("tasks", []) if t["id"] == task_id), None)
+                if task_info and "grader" in task_info:
+                    mod_name, func_name = task_info["grader"].split(":")
+                    mod = importlib.import_module(mod_name)
+                    self.grader = getattr(mod, func_name)
+                else:
+                    self.grader = lambda x: 0.0
+            except Exception:
+                self.grader = lambda x: 0.0
+
+        def make_env(self):
+            return MyEnvV4Env(max_steps=MAX_STEPS, task=task_id)
+
+    return SimulatedTask()
+
+async def run_inference(task_id):
     task_name = "Adaptive Traffic Signal Control"
     env_name = "TrafficEnvV4"
 
-    print(f"[START] task={task_name} env={env_name} model={MODEL_NAME}")
+    print(f"[START] task={task_name} env={env_name} model={MODEL_NAME} id={task_id}")
 
-    env = MyEnvV4Env(max_steps=MAX_STEPS)
+    task = load_task(task_id)
+    env = task.make_env()
+    grader = task.grader
     rewards = []
     error_msg = "null"
     done = False
@@ -154,7 +180,27 @@ async def run_inference():
         
         rewards_str = ",".join(f"{r:.2f}" for r in rewards)
         
+        # Evaluate using grader
+        try:
+            dummy_traj = [{
+                "observation": {
+                    "north_queue": env.north,
+                    "south_queue": env.south,
+                    "east_queue": env.east,
+                    "west_queue": env.west
+                }
+            }]
+            task_score = grader(dummy_traj)
+        except Exception:
+            task_score = 0.0
+            
         print(f"[END] success={str(success).lower()} steps={step_count} score={score:.2f} rewards={rewards_str}")
+        print(f"[FINAL SCORE] task={task_id} score={task_score:.2f}")
+
+async def main():
+    for current_task in ["easy", "medium", "hard"]:
+        print(f"\n--- Running Task: {current_task} ---")
+        await run_inference(current_task)
 
 if __name__ == "__main__":
-    asyncio.run(run_inference())
+    asyncio.run(main())

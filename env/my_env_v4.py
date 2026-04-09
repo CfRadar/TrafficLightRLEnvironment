@@ -29,7 +29,7 @@ class MyEnvV4Env:
         self.step_count = 0
         self._last_heuristic_action = None
         self.MAX_QUEUE = 40
-        self.MAX_THROUGHPUT = 6
+        self.MAX_THROUGHPUT = 10
         self.MAX_STEPS = max_steps
         
         # New state variables for advanced reward structure
@@ -98,19 +98,19 @@ class MyEnvV4Env:
 
         cars_cleared = 0
         if self.current_signal == 0:
-            n_clear = min(self.north, 6)
+            n_clear = min(self.north, self.MAX_THROUGHPUT)
             self.north -= n_clear
             cars_cleared = n_clear
         elif self.current_signal == 1:
-            s_clear = min(self.south, 6)
+            s_clear = min(self.south, self.MAX_THROUGHPUT)
             self.south -= s_clear
             cars_cleared = s_clear
         elif self.current_signal == 2:
-            e_clear = min(self.east, 6)
+            e_clear = min(self.east, self.MAX_THROUGHPUT)
             self.east -= e_clear
             cars_cleared = e_clear
         else:
-            w_clear = min(self.west, 6)
+            w_clear = min(self.west, self.MAX_THROUGHPUT)
             self.west -= w_clear
             cars_cleared = w_clear
 

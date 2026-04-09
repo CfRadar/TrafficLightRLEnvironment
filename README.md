@@ -30,6 +30,12 @@ This project solves these issues by treating traffic control as a dynamic optimi
 - **Deployment**: Readily hosted via **Docker + Hugging Face Spaces**.
 - **Simulation**: 4-way cross-intersection traffic simulation.
 
+### 🏆 Multi-Task Benchmarks
+The environment ships with three graded tasks configured out-of-the-box via `openenv.yaml`:
+- **`easy`**: Low traffic inflow for baseline validation.
+- **`medium`**: Balanced, moderate traffic.
+- **`hard`**: Highly imbalanced traffic requiring the LLM to dynamically prioritize bottlenecks to survive over 100 queue limits over time.
+
 ### 🧩 State Space
 The agent observes an `Observation` containing real-time intersection telemetry:
 - `north_queue`, `south_queue`, `east_queue`, `west_queue` (Queue lengths per lane)
